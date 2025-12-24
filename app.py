@@ -1,49 +1,54 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 import os
 
 app = Flask(__name__)
 
 # -------------------------
-# Route de santé (déjà OK)
+# Page d'accueil (test)
 # -------------------------
 @app.route("/", methods=["GET"])
-def health():
-    return jsonify({
-        "message": "L'API du détecteur Vitre est en cours d'exécution",
-        "status": "ok"
-    })
+def home():
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Test API Vitre Detector</title>
+    </head>
+    <body>
+        <h2>Test API /predict</h2>
 
+        <form action="/predict" method="post" enctype="multipart/form-data">
+            <input type="file" name="image" accept="image/*" required>
+            <br><br>
+            <button type="submit">Envoyer l'image</button>
+        </form>
+
+        <p>Après l'envoi, la réponse JSON s'affichera.</p>
+    </body>
+    </html>
+    """)
 
 # -------------------------
-# NOUVEL ENDPOINT /predict
+# Endpoint /predict
 # -------------------------
 @app.route("/predict", methods=["POST"])
 def predict():
-    # Vérifier qu'un fichier est bien envoyé
     if "image" not in request.files:
-        return jsonify({
-            "error": "Aucune image envoyée. Utilisez le champ 'image'."
-        }), 400
+        return jsonify({"error": "Aucune image envoyée"}), 400
 
     image_file = request.files["image"]
 
-    # Vérifier que le fichier a un nom
     if image_file.filename == "":
-        return jsonify({
-            "error": "Nom de fichier vide."
-        }), 400
+        return jsonify({"error": "Nom de fichier vide"}), 400
 
-    # (Pour l’instant) on ne traite pas l’image
-    # On confirme juste la réception
     return jsonify({
         "message": "Image reçue avec succès",
         "filename": image_file.filename,
         "status": "ready_for_model"
     })
 
-
 # -------------------------
-# Lancement Flask (AZURE)
+# Lancement Flask (Azure)
 # -------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
