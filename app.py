@@ -1,50 +1,63 @@
 from flask import Flask, request, jsonify, render_template_string
 import os
+import torch
 
 app = Flask(__name__)
+
+# -------------------------
+# Chargement du modèle AU DÉMARRAGE
+# -------------------------
+MODEL_PATH = "best_model.pt"
+
+model = None
+model_status = "not_loaded"
+
+try:
+    model = torch.load(MODEL_PATH, map_location="cpu")
+    model.eval()
+    model_status = "loaded"
+    print("✅ Modèle chargé avec succès")
+except Exception as e:
+    model_status = f"error: {e}"
+    print("❌ Erreur chargement modèle :", e)
 
 # -------------------------
 # Page d'accueil (test)
 # -------------------------
 @app.route("/", methods=["GET"])
 def home():
-    return render_template_string("""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Test API Vitre Detector</title>
-    </head>
-    <body>
-        <h2>Test API /predict</h2>
+    return render_template_string(f"""
+    <h2>API Vitre Detector</h2>
+    <p><b>Model status:</b> {model_status}</p>
 
-        <form action="/predict" method="post" enctype="multipart/form-data">
-            <input type="file" name="image" accept="image/*" required>
-            <br><br>
-            <button type="submit">Envoyer l'image</button>
-        </form>
-
-        <p>Après l'envoi, la réponse JSON s'affichera.</p>
-    </body>
-    </html>
+    <form action="/predict" method="post" enctype="multipart/form-data">
+        <input type="file" name="image" accept="image/*" required>
+        <br><br>
+        <button type="submit">Envoyer l'image</button>
+    </form>
     """)
 
 # -------------------------
-# Endpoint /predict
+# Endpoint /predict (SANS ML)
 # -------------------------
 @app.route("/predict", methods=["POST"])
 def predict():
+    if model is None:
+        return jsonify({
+            "error": "Modèle non chargé",
+            "model_status": model_status
+        }), 500
+
     if "image" not in request.files:
         return jsonify({"error": "Aucune image envoyée"}), 400
 
     image_file = request.files["image"]
 
-    if image_file.filename == "":
-        return jsonify({"error": "Nom de fichier vide"}), 400
-
     return jsonify({
         "message": "Image reçue avec succès",
         "filename": image_file.filename,
-        "status": "ready_for_model"
+        "model_status": model_status,
+        "status": "model_ready"
     })
 
 # -------------------------
